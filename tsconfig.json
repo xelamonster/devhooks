@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    /* Visit https://aka.ms/tsconfig to read more about this file */
+    /* Projects */
+    "incremental": true,
+    /* Language and Environment */
+    "target": "es2020",
+    "module": "es2020",
+    "rootDir": "./lib",
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    /* Emit */
+    "declaration": true,
+    "declarationMap": true,
+    "inlineSourceMap": true,
+    "outDir": "./dist",
+    /* Interop Constraints */
+    "esModuleInterop": true,
+    /* Type Checking */
+    "strict": true,
+    "noImplicitAny": true,
+    "useUnknownInCatchVariables": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true
+  },
+  "includes": ["lib/**/*.ts"]
+}
