@@ -22,13 +22,18 @@
   "module": "dist/index.js",
   "source": "lib/index.ts",
   "types": "dist/types/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
   "scripts": {
     "build": "parcel build",
     "check": "tsc -noEmit",
     "dev": "parcel watch",
     "fix": "biome lint --write .",
     "fmt": "dprint fmt",
-    "lint": "biome lint"
+    "lint": "biome lint",
+    "prepack": "pnpm check & pnpm build"
   },
   "dependencies": {
     "perfect-debounce": "^1.0.0",
