@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      perfect-debounce:
-        specifier: ^1.0.0
-        version: 1.0.0
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -33,6 +30,9 @@ importers:
       parcel:
         specifier: ^2.12.0
         version: 2.12.0(@swc/helpers@0.5.12)(typescript@5.5.4)
+      perfect-debounce:
+        specifier: ^1.0.0
+        version: 1.0.0
       sort-package-json:
         specifier: ^2.10.0
         version: 2.10.0
