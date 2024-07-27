@@ -1,31 +1,19 @@
 import { debounce, type DebounceOptions } from "perfect-debounce"
 import { type DependencyList, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react"
-import {
-  type AsAsyncFn,
-  type AsFallibleAsyncFn,
-  type AsyncFn,
-  type AsyncOption,
-  depsChanged,
-  type Fn,
-  type FnArgs,
-  type InferredAsyncFn,
-  type InferredFn,
-  shallowMerge,
-  type UnknownRecord,
-} from "./utils"
+import { depsChanged, shallowMerge, type UnknownRecord } from "./utils"
 
 /**
  * `useAsyncCb` provides a sync callback for an async function
  * along with helpers to track the state.
  */
-export const useAsyncCb = <F extends AsyncFn>(
-  fnAsync: InferredAsyncFn<F>,
+export const useAsyncCb = <F extends (...args: Parameters<F>) => Promise<ReturnType<F>>>(
+  fnAsync: F,
   onError?: (err: Error) => void,
-): [ReturnType<F> | undefined, Error | undefined, boolean, Fn<FnArgs<F>, void>] => {
+): [ReturnType<F> | undefined, Error | undefined, boolean, (...args: Parameters<F>) => void] => {
   const [res, setRes] = useState<ReturnType<F> | undefined>(undefined)
   const [err, setErr] = useState<Error | undefined>(undefined)
   const [isReady, setIsReady] = useState(false)
-  const fn = useCallback((...args: FnArgs<F>) => {
+  const fn = useCallback((...args: Parameters<F>) => {
     void fnAsync(...args).then(setRes).catch((err: unknown) => {
       onError?.(err as Error)
       setErr(err as Error)
@@ -72,14 +60,14 @@ export const useDebounce = <T>(val: T, dur = 300): T => {
  * `useDebounceFn` consolidates multiple calls tp `fn` within duration `dur` into one.
  * Calls the given function immediately, use `opts` to change behavior.
  */
-export const useDebounceFn = <F extends Fn>(
-  fn: InferredFn<F>,
+export const useDebounceFn = <F extends (...args: Parameters<F>) => ReturnType<F>>(
+  fn: F,
   dur = 300,
   opts: DebounceOptions = { leading: true },
-): AsAsyncFn<F> => {
+): (...args: Parameters<F>) => Promise<ReturnType<F>> => {
   const ref = useCurrentRef(fn)
   return useStaticMemo(
-    () => debounce((...args: FnArgs<F>): ReturnType<F> => ref.current(...args), dur, opts),
+    () => debounce((...args: Parameters<F>): ReturnType<F> => ref.current(...args), dur, opts),
     [dur, opts],
   )
 }
@@ -88,13 +76,15 @@ export const useDebounceFn = <F extends Fn>(
  * `useMutexFn` returns a callback that allows one call to `fn` and
  * ignores all subsequent calls until it completes.
  */
-export const useMutexFn = <F extends AsyncFn>(fn: InferredAsyncFn<F>): AsFallibleAsyncFn<F> => {
+export const useMutexFn = <F extends (...args: Parameters<F>) => Promise<ReturnType<F>>>(
+  fn: F,
+): (...args: Parameters<F>) => Promise<ReturnType<F> | undefined> => {
   const lockRef = useRef(false)
-  return useCallback(async (...args: FnArgs<F>): Promise<AsyncOption<ReturnType<F>>> => {
+  return useCallback(async (...args: Parameters<F>) => {
     if (lockRef.current) return
     lockRef.current = true
     try {
-      await fn(...args)
+      return await fn(...args)
     } finally {
       lockRef.current = false
     }
@@ -105,13 +95,13 @@ export const useMutexFn = <F extends AsyncFn>(fn: InferredAsyncFn<F>): AsFallibl
  * `useStaticMutexFn` is the same as `useMutexFn`, but the returned ref is wrapped
  * with `useStaticFn` instead of the standard `useCallback`.
  */
-export const useStaticMutexFn = <F extends AsyncFn>(fn: InferredAsyncFn<F>) => {
+export const useStaticMutexFn = <F extends (...args: Parameters<F>) => Promise<ReturnType<F>>>(fn: F) => {
   const lockRef = useRef(false)
-  return useStaticFn(async (...args: FnArgs<F>): Promise<AsyncOption<ReturnType<F>>> => {
+  return useStaticFn(async (...args: Parameters<F>): Promise<ReturnType<F> | undefined> => {
     if (lockRef.current) return
     lockRef.current = true
     try {
-      await fn(...args)
+      return await fn(...args)
     } finally {
       lockRef.current = false
     }
