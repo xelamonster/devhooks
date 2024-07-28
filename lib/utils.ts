@@ -24,6 +24,8 @@ export const isPromise = <T>(x: T | Promise<T>): x is Promise<T> => {
   return (typeofx === "object" || typeofx === "function") && isFn((x as any).then) && isFn((x as any).catch)
 }
 
+export type Res<T, E = Error> = { ok?: T, err?: E }
+export type ResLoading<T, E = Error> = Res<T, E> & { loading: boolean }
 export type UnknownRecord = Record<string | number | symbol, unknown>
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export type UnknownFn = (...args: any) => any
@@ -33,6 +35,8 @@ export type UnknownAsyncFn = (...args: any) => Promise<any>
 export type UnknownVoidFn = (...args: any) => void
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export type UnknownAsyncVoidFn = (...args: any) => Promise<void>
+export type EffectFn = () => void
+export type AsyncEffectFn = () => Promise<void> 
 export type InferredFn<F extends UnknownFn> = (...args: Parameters<F>) => ReturnType<F>
 export type InferredAsyncFn<F extends UnknownAsyncFn> = (
   ...args: Parameters<F>
