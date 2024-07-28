@@ -199,19 +199,19 @@ export const useStaticEffect = (fn: () => void, deps: DependencyList = []) => us
 export const useLocalStore = <T>(
   key: string,
   initVal?: T,
-): [T | undefined, (newVal?: T) => Promise<void>] => {
-  const [val, setVal] = useState<T | undefined>()
+): [ResLoading<T>, (newVal?: T) => Promise<void>] => {
+  const [store, setStore] = useState<ResLoading<T>>({ loading: true })
 
   const setLocalStore = useStaticCb(async (newVal?: T): Promise<void> => {
     await localForage.setItem(key, newVal)
-    setVal(newVal)
-  }, [key, setVal])
-
-  useStaticEffect(() => {
-    if (!localForage.getItem(key)) {
-      setLocalStore(initVal)
-    }
+    setStore({ ok: newVal, loading: false })
   }, [key])
 
-  return [val, setLocalStore]
+  useAsyncEffect(async () => {
+    const val = await localForage.getItem<T>(key)
+    if (!val) setLocalStore(initVal)
+    else setStore({ ok: val, loading: false })
+  }, [key])
+
+  return [store, setLocalStore]
 }
