@@ -196,7 +196,10 @@ export const useStaticEffect = (fn: () => void, deps: DependencyList = []) => us
 /**
  * `useLocalStore` provides persistent state from local browser storage.
  */
-export const useLocalStore = <T>(key: string, initVal?: T): [T | undefined, (newVal?: T) => void] => {
+export const useLocalStore = <T>(
+  key: string,
+  initVal?: T,
+): [T | undefined, (newVal?: T) => Promise<void>] => {
   const [val, setVal] = useState<T | undefined>()
 
   const setLocalStore = useStaticCb(async (newVal?: T): Promise<void> => {
