@@ -120,6 +120,22 @@ export const useDebounceCb = <F extends InferredFn<F>>(
 }
 
 /**
+ * `useAsyncDebounceCb` is the same as `useDecounceCb` but avoids nested promises.
+ */
+export const useAsyncDebounceCb = <F extends InferredAsyncFn<F>>(
+  fn: F,
+  deps: DependencyList = [],
+  dur = 300,
+  opts: DebounceOptions = { leading: true },
+): F => {
+  const ref = useCurrentRef(fn)
+  return useStaticMemo(
+    () => debounce(async (...args: Parameters<F>) => await ref.current(...args), dur, opts),
+    [dur, opts, ...deps],
+  ) as F
+}
+
+/**
  * `useMutexCb` returns a callback that allows one call to `fn` and
  * ignores all subsequent calls until it completes.
  */
