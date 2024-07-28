@@ -1,3 +1,4 @@
+import localForage from "localforage"
 import { debounce, type DebounceOptions } from "perfect-debounce"
 import {
   type DependencyList,
@@ -13,9 +14,12 @@ import {
 import {
   type AsAsyncVoidFn,
   type AsVoidFn,
+  type AsyncEffectFn,
   depsChanged,
+  type EffectFn,
   type InferredAsyncFn,
   type InferredFn,
+  type ResLoading,
   shallowMerge,
   type UnknownRecord,
   type UnPromise,
@@ -26,19 +30,40 @@ import {
  * along with helpers to track the state.
  */
 export const useAsyncCb = <F extends InferredAsyncFn<F>>(
-  fnAsync: F,
+  fn: F,
+  deps: DependencyList = [],
   onError?: (err: Error) => void,
-): [UnPromise<ReturnType<F>> | undefined, Error | undefined, boolean, AsVoidFn<F>] => {
-  const [res, setRes] = useState<UnPromise<ReturnType<F>> | undefined>(undefined)
-  const [err, setErr] = useState<Error | undefined>(undefined)
-  const [isReady, setIsReady] = useState(false)
-  const fn = useCallback((...args: Parameters<F>) => {
-    void fnAsync(...args).then(setRes).catch((err: unknown) => {
+): [ResLoading<UnPromise<ReturnType<F>>>, AsVoidFn<F>, EffectFn] => {
+  const [res, setRes] = useState<ResLoading<UnPromise<ReturnType<F>>>>({ loading: false })
+  const fnSync = useStaticCb((...args: Parameters<F>) => {
+    setRes({ loading: true })
+    void fn(...args).then((ok) => setRes({ ok, loading: false })).catch((err: unknown) => {
+      setRes({ err: err as Error, loading: false })
       onError?.(err as Error)
-      setErr(err as Error)
-    }).finally(() => setIsReady(true))
-  }, [fnAsync, onError])
-  return [res, err, isReady, fn]
+    })
+  }, [fn, onError, ...deps])
+  return [res, fnSync, () => setRes({ loading: false })]
+}
+
+/**
+ * `useAsyncEffect` handles async `useEffect` methods with optional error handling.
+ */
+export const useAsyncEffect = <F extends AsyncEffectFn & InferredAsyncFn<F>>(
+  fn: F,
+  deps: DependencyList = [],
+  onError?: (err: Error) => void,
+): void => {
+  const [res, fnSync, clear] = useAsyncCb(fn)
+
+  useStaticEffect(() => {
+    if (res.loading) return
+    if (res.err) {
+      clear()
+      if (!onError) throw res.err
+      onError(res.err)
+    }
+    ;(fnSync as EffectFn)()
+  }, [res.err, fnSync, ...deps])
 }
 
 /**
@@ -66,9 +91,9 @@ export const useCurrentRef = <T>(val: T): MutableRefObject<T> => {
 }
 
 /**
- * `useDebounce` gives a value that delays updates to `val` by the duration `dur`.
+ * `useDebounceVal` gives a value that delays updates to `val` by the duration `dur`.
  */
-export const useDebounce = <T>(val: T, dur = 300): T => {
+export const useDebounceVal = <T>(val: T, dur = 300): T => {
   const [debounced, setDebounced] = useState(val)
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(val), dur)
@@ -78,26 +103,30 @@ export const useDebounce = <T>(val: T, dur = 300): T => {
 }
 
 /**
- * `useDebounceFn` consolidates multiple calls tp `fn` within duration `dur` into one.
+ * `useDebounceCb` consolidates multiple calls tp `fn` within duration `dur` into one.
  * Calls the given function immediately, use `opts` to change behavior.
  */
-export const useDebounceFn = <F extends InferredFn<F>>(
+export const useDebounceCb = <F extends InferredFn<F>>(
   fn: F,
+  deps: DependencyList = [],
   dur = 300,
   opts: DebounceOptions = { leading: true },
 ): (...args: Parameters<F>) => Promise<ReturnType<F>> => {
   const ref = useCurrentRef(fn)
   return useStaticMemo(
     () => debounce((...args: Parameters<F>): ReturnType<F> => ref.current(...args), dur, opts),
-    [dur, opts],
+    [dur, opts, ...deps],
   )
 }
 
 /**
- * `useMutexFn` returns a callback that allows one call to `fn` and
+ * `useMutexCb` returns a callback that allows one call to `fn` and
  * ignores all subsequent calls until it completes.
  */
-export const useMutexFn = <F extends InferredAsyncFn<F>>(fn: F): AsAsyncVoidFn<F> => {
+export const useMutexCb = <F extends InferredAsyncFn<F>>(
+  fn: F,
+  deps: DependencyList = [],
+): AsAsyncVoidFn<F> => {
   const lockRef = useRef(false)
   return useCallback(async (...args: Parameters<F>): Promise<void> => {
     if (lockRef.current) return
@@ -107,16 +136,19 @@ export const useMutexFn = <F extends InferredAsyncFn<F>>(fn: F): AsAsyncVoidFn<F
     } finally {
       lockRef.current = false
     }
-  }, [fn])
+  }, [fn, ...deps])
 }
 
 /**
- * `useStaticMutexFn` is the same as `useMutexFn`, but the returned ref is wrapped
- * with `useStaticFn` instead of the standard `useCallback`.
+ * `useStaticMutexCb` is the same as `useMutexCb`, but the returned ref is wrapped
+ * with `useStaticCb` instead of the standard `useCallback`.
  */
-export const useStaticMutexFn = <F extends InferredAsyncFn<F>>(fn: F): AsAsyncVoidFn<F> => {
+export const useStaticMutexCb = <F extends InferredAsyncFn<F>>(
+  fn: F,
+  deps: DependencyList = [],
+): AsAsyncVoidFn<F> => {
   const lockRef = useRef(false)
-  return useStaticFn(async (...args: Parameters<F>): Promise<void> => {
+  return useStaticCb(async (...args: Parameters<F>): Promise<void> => {
     if (lockRef.current) return
     lockRef.current = true
     try {
@@ -124,7 +156,7 @@ export const useStaticMutexFn = <F extends InferredAsyncFn<F>>(fn: F): AsAsyncVo
     } finally {
       lockRef.current = false
     }
-  })
+  }, deps)
 }
 
 /**
@@ -142,12 +174,12 @@ export const useStaticMemo = <T>(gen: () => T, deps: DependencyList = []): T => 
 }
 
 /**
- * `useStaticFn` gives a ref to `fn` which always calls the latest `fn`,
+ * `useStaticCb` gives a ref to `fn` which always calls the latest `fn`,
  * but won't trigger rerenders if `fn` changes.
  */
-export const useStaticFn = <F extends InferredFn<F>>(fn: F): F => {
+export const useStaticCb = <F extends InferredFn<F>>(fn: F, deps: DependencyList = []): F => {
   const ref = useRef<F>(fn)
-  ref.current = useMemo<F>(() => fn, [fn])
+  ref.current = useMemo<F>(() => fn, [fn, ...deps])
   const staticRef = useRef<(...args: Parameters<F>) => ReturnType<F>>()
   if (!staticRef.current) {
     staticRef.current = (...args: Parameters<F>): ReturnType<F> => ref.current(...args)
@@ -156,7 +188,27 @@ export const useStaticFn = <F extends InferredFn<F>>(fn: F): F => {
 }
 
 /**
- *  `useStaticEffect` will be called once and only once,
+ * `useStaticEffect` will be called once and only once,
  * without complaints about incomplete deps arrays.
  */
-export const useStaticEffect = (fn: () => void) => useEffect(useStaticFn(fn), [])
+export const useStaticEffect = (fn: () => void, deps: DependencyList = []) => useEffect(useStaticCb(fn), deps)
+
+/**
+ * `useLocalStore` provides persistent state from local browser storage.
+ */
+export const useLocalStore = <T>(key: string, initVal?: T): [T | undefined, (newVal?: T) => void] => {
+  const [val, setVal] = useState<T | undefined>()
+
+  const setLocalStore = useStaticCb(async (newVal?: T): Promise<void> => {
+    await localForage.setItem(key, newVal)
+    setVal(newVal)
+  }, [key, setVal])
+
+  useStaticEffect(() => {
+    if (!localForage.getItem(key)) {
+      setLocalStore(initVal)
+    }
+  }, [key])
+
+  return [val, setLocalStore]
+}
