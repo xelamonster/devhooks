@@ -120,22 +120,6 @@ export const useDebounceCb = <F extends InferredFn<F>>(
 }
 
 /**
- * `useAsyncDebounceCb` is the same as `useDecounceCb` but avoids nested promises.
- */
-export const useAsyncDebounceCb = <F extends InferredAsyncFn<F>>(
-  fn: F,
-  deps: DependencyList = [],
-  dur = 300,
-  opts: DebounceOptions = { leading: true },
-): F => {
-  const ref = useCurrentRef(fn)
-  return useStaticMemo(
-    () => debounce(async (...args: Parameters<F>) => await ref.current(...args), dur, opts),
-    [dur, opts, ...deps],
-  ) as F
-}
-
-/**
  * `useMutexCb` returns a callback that allows one call to `fn` and
  * ignores all subsequent calls until it completes.
  */
@@ -180,7 +164,7 @@ export const useStaticMutexCb = <F extends InferredAsyncFn<F>>(
  * even if React thinks it'd be funny.
  */
 export const useStaticMemo = <T>(gen: () => T, deps: DependencyList = []): T => {
-  const ref = useRef<{ val?: T; deps: DependencyList; init: boolean }>({ deps: deps, init: true })
+  const ref = useRef<{ val?: T; deps: DependencyList; init: boolean }>({ deps: deps, init: false })
   if (!ref.current.init || (depsChanged(ref.current.deps, deps))) {
     ref.current.val = gen()
     ref.current.deps = deps
