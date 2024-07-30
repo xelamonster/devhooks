@@ -15,9 +15,8 @@ import {
 import {
   type AsAsyncVoidFn,
   type AsVoidFn,
-  type AsyncEffectFn,
+  type AsyncEffectCb,
   depsChanged,
-  type EffectFn,
   type InferredAsyncFn,
   type InferredFn,
   type ResLoading,
@@ -34,7 +33,7 @@ export const useAsyncCb = <F extends InferredAsyncFn<F>>(
   fn: F,
   deps: DependencyList = [],
   onError?: (err: Error) => void,
-): [ResLoading<UnPromise<ReturnType<F>>>, AsVoidFn<F>, EffectFn] => {
+): [ResLoading<UnPromise<ReturnType<F>>>, AsVoidFn<F>, EffectCallback] => {
   const [res, setRes] = useState<ResLoading<UnPromise<ReturnType<F>>>>({ loading: false })
   const fnSync = useStaticCb((...args: Parameters<F>) => {
     setRes({ loading: true })
@@ -49,7 +48,7 @@ export const useAsyncCb = <F extends InferredAsyncFn<F>>(
 /**
  * `useAsyncEffect` handles async `useEffect` methods with optional error handling.
  */
-export const useAsyncEffect = <F extends AsyncEffectFn & InferredAsyncFn<F>>(
+export const useAsyncEffect = <F extends AsyncEffectCb & InferredAsyncFn<F>>(
   fn: F,
   deps: DependencyList = [],
   onError?: (err: Error) => void,
@@ -63,7 +62,7 @@ export const useAsyncEffect = <F extends AsyncEffectFn & InferredAsyncFn<F>>(
       if (!onError) throw res.err
       onError(res.err)
     }
-    ;(fnSync as EffectFn)()
+    ;(fnSync as EffectCallback)()
   }, [res.err, fnSync, ...deps])
 }
 
@@ -118,6 +117,11 @@ export const useDebounceCb = <F extends InferredFn<F>>(
     () => debounce((...args: Parameters<F>): ReturnType<F> => ref.current(...args), dur, opts),
     [dur, opts, ...deps],
   )
+}
+
+export const useDebounceEffect = (fn: EffectCallback, deps: DependencyList = [], dur = 500) => {
+  const debounced = useDebounceCb(fn, [], dur)
+  useAsyncEffect(debounced, deps)
 }
 
 /**
