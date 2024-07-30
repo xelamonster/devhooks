@@ -3,6 +3,7 @@ import { debounce, type DebounceOptions } from "perfect-debounce"
 import {
   type DependencyList,
   type Dispatch,
+  type EffectCallback,
   type MutableRefObject,
   useCallback,
   useEffect,
@@ -214,4 +215,34 @@ export const useLocalStore = <T>(
   }, [key])
 
   return [store, setLocalStore]
+}
+
+export const useObserveState = (tag: string, state: UnknownRecord) => {
+  const prevState = useRef<UnknownRecord>({})
+
+  useEffect(() => {
+    const keys = Object.keys({ ...prevState.current, ...state })
+    const updated: UnknownRecord = {}
+    let isUpdated = false
+    for (const key of keys) {
+      if (!Object.is(prevState.current[key], state[key])) {
+        updated[key] = { prev: prevState.current[key], new: state[key] }
+        isUpdated = true
+      }
+    }
+    if (isUpdated) {
+      console.log(`<devhooks:observe> State updated for "${tag}": ${JSON.stringify(updated, null, 2)}`)
+    }
+    prevState.current = state
+  })
+}
+
+export const useObserveEffect = (fn: EffectCallback, deps: DependencyList, tag: string) => {
+  const prevDeps = useRef<DependencyList>(deps)
+  if (depsChanged(prevDeps.current, deps)) {
+    const updated = { prev: prevDeps.current, new: deps }
+    console.log(`<devhooks:observe> Effect deps updated for "${tag}": ${JSON.stringify(updated, null, 2)}`)
+  }
+  prevDeps.current = deps
+  useEffect(fn, deps)
 }
