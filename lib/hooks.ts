@@ -231,7 +231,7 @@ export const useObserveState = (tag: string, state: UnknownRecord) => {
       }
     }
     if (isUpdated) {
-      console.log(`<devhooks:observe> State updated for "${tag}": ${JSON.stringify(updated, null, 2)}`)
+      console.log(`<devhooks:observe> State updated for "${tag}"`, updated)
     }
     prevState.current = state
   })
@@ -241,7 +241,7 @@ export const useObserveEffect = (fn: EffectCallback, deps: DependencyList, tag: 
   const prevDeps = useRef<DependencyList>(deps)
   if (depsChanged(prevDeps.current, deps)) {
     const updated = { prev: prevDeps.current, new: deps }
-    console.log(`<devhooks:observe> Effect deps updated for "${tag}": ${JSON.stringify(updated, null, 2)}`)
+    console.log(`<devhooks:observe> Effect deps updated for "${tag}"`, updated)
   }
   prevDeps.current = deps
   useEffect(fn, deps)
